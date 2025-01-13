@@ -4,9 +4,12 @@ import * as s3 from "aws-cdk-lib/aws-s3"
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as path from 'path';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { LambdaDestination } from 'aws-cdk-lib/aws-s3-notifications';
+
 
 const REPOSITORY_TOP=path.join(__dirname,"../");
 const PREFIX = "cdk-lambda-koizumi-test"
+
 
 
 export class CdkLambdaStack extends cdk.Stack {
@@ -26,6 +29,17 @@ export class CdkLambdaStack extends cdk.Stack {
       memorySize: 128,
       timeout: cdk.Duration.seconds(30)
     })
+
+    bucket.grantPut(resizeLambda)
+    bucket.grantReadWrite(resizeLambda)
+
+    bucket.addEventNotification(
+      s3.EventType.OBJECT_CREATED,
+      new LambdaDestination(resizeLambda),
+      {
+        prefix: "original/"
+      }
+    );
 
   }
 
