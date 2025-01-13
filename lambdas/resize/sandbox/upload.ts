@@ -6,9 +6,7 @@ import { S3Client, PutObjectCommandInput, PutObjectCommand } from '@aws-sdk/clie
 const BUCKET_NAME = process.env.BUCKET_NAME;
 const REPOSITORY_TOP = path.resolve(__dirname,"../../../");
 
-export async function uplaod(imageBuffer:Buffer,bucketName:string ,uploadPath:string){
-    const s3Client = new S3Client();
-    //const key = "original/fuji.png";
+export async function uplaod(s3Client:S3Client,imageBuffer:Buffer,bucketName:string ,uploadPath:string){
     const input:PutObjectCommandInput = {
         Bucket:bucketName,
         Key:uploadPath,
@@ -19,6 +17,7 @@ export async function uplaod(imageBuffer:Buffer,bucketName:string ,uploadPath:st
 }
 
 async function main(){
+    const s3Client = new S3Client();
     if(!BUCKET_NAME){
         throw Error("BUCKET_NAMEが空です");
     }
@@ -28,7 +27,7 @@ async function main(){
     const image = await jimp.read(imagePath);
     const mime = image.getMIME();
     const imageBuffer = await image.getBufferAsync(mime);
-    const result = await uplaod(imageBuffer,BUCKET_NAME,`temp/${key}`);
+    const result = await uplaod(s3Client,imageBuffer,BUCKET_NAME,`temp/${key}`);
     console.log(result);
 }
 

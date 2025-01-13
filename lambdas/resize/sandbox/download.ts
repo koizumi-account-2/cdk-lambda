@@ -3,10 +3,7 @@ import { S3Client,GetObjectCommand,GetObjectCommandInput } from '@aws-sdk/client
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
 
-export async function download(bucketName:string | undefined,filePath:string):Promise<Uint8Array>{
-    const s3Client = new S3Client();
-    //const key = "original/fuji.png";
-
+export async function download(s3Client:S3Client, bucketName:string,filePath:string):Promise<Uint8Array>{
     const input:GetObjectCommandInput = {
         Bucket:bucketName,
         Key:filePath
@@ -20,8 +17,12 @@ export async function download(bucketName:string | undefined,filePath:string):Pr
 }
 
 async function main(){
+    const s3Client = new S3Client();
+    if(!BUCKET_NAME){
+        throw Error("BUCKET_NAMEが空です");
+    }
     const key = "original/fuji.png";
-    const body = await download(BUCKET_NAME,key);
+    const body = await download(s3Client,BUCKET_NAME,key);
     console.log(body);
 }
 

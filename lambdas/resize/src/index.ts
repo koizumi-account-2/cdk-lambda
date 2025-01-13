@@ -4,14 +4,16 @@ import { download } from '../sandbox/download';
 import { uplaod } from '../sandbox/upload';
 import jimp from 'jimp';
 import path from 'path';
+import { S3Client } from '@aws-sdk/client-s3';
 
 const DIRECTORY = "resized";
 
 export const handler:S3Handler = async (event:S3Event)=>{
+    const s3Client = new S3Client();
     for(const record of event.Records){
         const bucketName = record.s3.bucket.name;
         const key = record.s3.object.key;
-        const body = await download(bucketName,key)
+        const body = await download(s3Client,bucketName,key)
         const parsedKey = path.parse(key);
         console.log(`body ${body}`)
         const bodyBuffer= Buffer.from(body);
@@ -21,7 +23,7 @@ export const handler:S3Handler = async (event:S3Event)=>{
         const imageBuffer = await image.getBufferAsync(mime);
         const uploadKey = `${DIRECTORY}/${parsedKey.name}-resize${parsedKey.ext}`;
         console.log(`uploadKey:${uploadKey}`)
-        const result = await uplaod(imageBuffer,bucketName,uploadKey);
+        const result = await uplaod(s3Client,imageBuffer,bucketName,uploadKey);
         console.log(`upload結果:${result}`);
     }
 }
