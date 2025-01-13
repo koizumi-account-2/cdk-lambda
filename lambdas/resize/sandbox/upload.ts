@@ -28,8 +28,9 @@ async function main(){
     const image = await jimp.read(imagePath);
     const mime = image.getMIME();
     const imageBuffer = await image.getBufferAsync(mime);
-    await uplaod(imageBuffer,BUCKET_NAME,`temp/${key}`);
+    const result = await uplaod(imageBuffer,BUCKET_NAME,`temp/${key}`);
+    console.log(result);
 }
 
-main();
+//main();
 
