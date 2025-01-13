@@ -1,29 +1,52 @@
-import {S3Event, S3Handler} from 'aws-lambda'
-import { resize } from '../sandbox/resize';
-import { download } from '../sandbox/download';
-import { uplaod } from '../sandbox/upload';
-import jimp from 'jimp';
-import path from 'path';
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Handler, S3Event, SQSHandler, SQSEvent } from 'aws-lambda'
+import { S3Client } from '@aws-sdk/client-s3'
+import path from 'path'
+import { getImageFromS3, putImageToS3 } from '../../common/src/index'
+import {
+  SQSClient,
+  SendMessageCommand,
+  SendMessageCommandInput,
+} from '@aws-sdk/client-sqs'
 
-const DIRECTORY = "resized";
+const QUEUE_URL = process.env.QUEUE_URL
+const PROCESS = 'resize'
 
-export const handler:S3Handler = async (event:S3Event)=>{
-    const s3Client = new S3Client();
-    for(const record of event.Records){
-        const bucketName = record.s3.bucket.name;
-        const key = record.s3.object.key;
-        const body = await download(s3Client,bucketName,key)
-        const parsedKey = path.parse(key);
-        console.log(`body ${body}`)
-        const bodyBuffer= Buffer.from(body);
-        const image = await jimp.read(bodyBuffer);
-        const resizedImage = resize(image);
-        const mime = resizedImage.getMIME();
-        const imageBuffer = await image.getBufferAsync(mime);
-        const uploadKey = `${DIRECTORY}/${parsedKey.name}-resize${parsedKey.ext}`;
-        console.log(`uploadKey:${uploadKey}`)
-        const result = await uplaod(s3Client,imageBuffer,bucketName,uploadKey);
-        console.log(`upload結果:${result}`);
+export const handler: SQSHandler = async (event: SQSEvent) => {
+  console.log(`SQS Event: ${JSON.stringify(event, null, 2)}`)
+
+  const s3Client = new S3Client()
+  for (const record of event.Records) {
+    const message = record.body
+    const s3Event: S3Event = JSON.parse(message)
+    console.log(`S3 Event: ${JSON.stringify(s3Event, null, 2)}`)
+
+    for (const s3Record of s3Event.Records) {
+      // 1. download
+      const bucketName = s3Record.s3.bucket.name
+      const key = s3Record.s3.object.key
+      const parsedKey = path.parse(key)
+
+      const image = await getImageFromS3(s3Client, bucketName, key)
+
+      const width = image.getWidth()
+      const height = image.getHeight()
+
+      console.log(`original size: (${width}, ${height})`)
+
+      const resizedWidth = Math.floor(width / 2)
+      const resizedHeight = Math.floor(height / 2)
+      console.log(`${PROCESS}: (${resizedWidth}, ${resizedHeight})`)
+
+      image.resize(resizedWidth, resizedHeight)
+
+      // 3. upload
+      const mime = image.getMIME()
+
+      const imageBuffer = await image.getBufferAsync(mime)
+
+      const uploadKey = `${PROCESS}/${parsedKey.name}-${PROCESS}${parsedKey.ext}`
+
+      await putImageToS3(s3Client, bucketName, uploadKey, imageBuffer);
     }
+  }
 }
