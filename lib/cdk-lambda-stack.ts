@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from "aws-cdk-lib/aws-s3"
 
-const PREFIX = "cdk-lambda"
+const PREFIX = "cdk-lambda-koizumi-test"
 
 
 export class CdkLambdaStack extends cdk.Stack {
