@@ -8,7 +8,15 @@ async function main(){
     console.log(`reading an image form ${imagePath}`);
 
     const image = await jimp.read(imagePath);
-    image.resize(100,100);
+    const width = image.getWidth();
+    const height = image.getHeight();
+
+    console.log(`original size: ${width} ,${height}`);
+    const resizedWidth = Math.floor(width/2);
+    const resizedHeight = Math.floor(height/2);
+    console.log(`resized size: ${resizedWidth} ,${resizedHeight}`);
+
+    image.resize(resizedWidth,resizedHeight);
     image.write('resized_fuji.png');
 }
 
