@@ -1,7 +1,8 @@
-import { GetObjectCommand, GetObjectCommandInput, PutObjectCommand, PutObjectCommandInput, S3Client } from '@aws-sdk/client-s3';
 import {S3Event, S3Handler} from 'aws-lambda'
-import * as jimp from "jimp"
 import * as path from "path"
+
+import {getImageFromS3, putImageToS3} from "../../common/src"
+import { S3Client } from '@aws-sdk/client-s3';
 
 const DEIRECTORY = "resized";
 
@@ -13,22 +14,9 @@ export const handler:S3Handler = async (event:S3Event)=>{
 
         const parsedKey = path.parse(key);
         // download
-        const input:GetObjectCommandInput = {
-            Bucket:bucketName,
-            Key:key
-        };
-        console.log(`downloading from s3://${bucketName}/${key}`)
-        const cmd = new GetObjectCommand(input);
-        const result = await s3Client.send(cmd);
-        if(!result.Body){
-            throw Error("result.Body is undefined");
-        }
-        const body = await result.Body.transformToByteArray();
-        console.log(body);
-
+        const image = await getImageFromS3(s3Client,bucketName,key);
         // edit
-        const bodyBuffer = Buffer.from(body);
-        const image = await jimp.read(bodyBuffer);
+
         const width = image.getWidth();
         const height = image.getHeight();
 
@@ -44,17 +32,6 @@ export const handler:S3Handler = async (event:S3Event)=>{
         const uploadKey = `${DEIRECTORY}/${parsedKey.name}-resize${parsedKey.ext}`;
         const imageBuffer = await image.getBufferAsync(image.getMIME());
         console.log(`uploadKey:${uploadKey}, bucket:${bucketName}`);
-        const putInput:PutObjectCommandInput = {
-            Bucket:bucketName,
-            Key:uploadKey,
-            Body:imageBuffer
-        } 
-
-        const putObjectCommand = new PutObjectCommand(putInput);
-        const uploadResult = await s3Client.send(putObjectCommand);
-        console.log(uploadResult);
-
-
-
+        await putImageToS3(s3Client,bucketName,uploadKey,imageBuffer);
     }
 }
