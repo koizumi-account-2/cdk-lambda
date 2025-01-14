@@ -3,8 +3,13 @@ import * as path from "path"
 
 import {getImageFromS3, putImageToS3} from "../../common/src"
 import { S3Client } from '@aws-sdk/client-s3';
+import { S3Message } from "../../common/src/types";
+import { SendMessageCommand, SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs';
+
 
 const DEIRECTORY = "resized";
+const QUEUE_URL = process.env.queueUrl;
+
 
 export const handler:S3Handler = async (event:S3Event)=>{
     const s3Client = new S3Client();
@@ -33,5 +38,20 @@ export const handler:S3Handler = async (event:S3Event)=>{
         const imageBuffer = await image.getBufferAsync(image.getMIME());
         console.log(`uploadKey:${uploadKey}, bucket:${bucketName}`);
         await putImageToS3(s3Client,bucketName,uploadKey,imageBuffer);
+
+        // send message sqs
+        const s3Message:S3Message = {
+            bucketName,
+            key:uploadKey,
+        };
+        const sqsClient = new SQSClient();
+        const sendCmdInput:SendMessageCommandInput = {
+            QueueUrl:QUEUE_URL,
+            MessageBody:JSON.stringify(s3Message)
+        }; 
+        const sqsCmd:SendMessageCommand  = new SendMessageCommand(sendCmdInput);
+
+        await sqsClient.send(sqsCmd);
+        console.log(`sent message to SQS, message: ${JSON.stringify(s3Message)}`);
     }
 }
