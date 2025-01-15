@@ -1,4 +1,4 @@
-import {S3Event, S3Handler} from 'aws-lambda'
+import { S3Event, SQSEvent, SQSHandler} from 'aws-lambda'
 import * as path from "path"
 
 import {getImageFromS3, putImageToS3} from "../../common/src"
@@ -11,47 +11,55 @@ const DEIRECTORY = "resized";
 const QUEUE_URL = process.env.QUEUE_URL;
 
 
-export const handler:S3Handler = async (event:S3Event)=>{
+export const handler:SQSHandler = async (event:SQSEvent)=>{
+    console.log("SQS EVENT start")
     const s3Client = new S3Client();
-    for(const record of event.Records){
-        const bucketName = record.s3.bucket.name;
-        const key = record.s3.object.key;
+    for(const record of event.Records){ 
+        const message = record.body;
+        const s3Event:S3Event = JSON.parse(message);
+        console.log("S3 EVENT start")
+        for(const s3Record of s3Event.Records){
+            const bucketName = s3Record.s3.bucket.name;
+            const key = s3Record.s3.object.key;
 
-        const parsedKey = path.parse(key);
-        // download
-        const image = await getImageFromS3(s3Client,bucketName,key);
-        // edit
+            const parsedKey = path.parse(key);
+            // download
+            const image = await getImageFromS3(s3Client,bucketName,key);
+            // edit
 
-        const width = image.getWidth();
-        const height = image.getHeight();
+            const width = image.getWidth();
+            const height = image.getHeight();
 
-        console.log(`original size: ${width} ,${height}`);
-        const resizedWidth = Math.floor(width/2);
-        const resizedHeight = Math.floor(height/2);
-        console.log(`resized size: ${resizedWidth} ,${resizedHeight}`);
+            console.log(`original size: ${width} ,${height}`);
+            const resizedWidth = Math.floor(width/2);
+            const resizedHeight = Math.floor(height/2);
+            console.log(`resized size: ${resizedWidth} ,${resizedHeight}`);
 
-        image.resize(resizedWidth,resizedHeight);
-        image.write('resized_fuji.png');
+            image.resize(resizedWidth,resizedHeight);
+            image.write('resized_fuji.png');
 
-        // upload
-        const uploadKey = `${DEIRECTORY}/${parsedKey.name}-resize${parsedKey.ext}`;
-        const imageBuffer = await image.getBufferAsync(image.getMIME());
-        console.log(`uploadKey:${uploadKey}, bucket:${bucketName}`);
-        await putImageToS3(s3Client,bucketName,uploadKey,imageBuffer);
+            // upload
+            const uploadKey = `${DEIRECTORY}/${parsedKey.name}-resize${parsedKey.ext}`;
+            const imageBuffer = await image.getBufferAsync(image.getMIME());
+            console.log(`uploadKey:${uploadKey}, bucket:${bucketName}`);
+            await putImageToS3(s3Client,bucketName,uploadKey,imageBuffer);
 
-        // send message sqs
-        const s3Message:S3Message = {
-            bucketName,
-            key:uploadKey,
-        };
-        const sqsClient = new SQSClient();
-        const sendCmdInput:SendMessageCommandInput = {
-            QueueUrl:QUEUE_URL,
-            MessageBody:JSON.stringify(s3Message)
-        }; 
-        const sqsCmd:SendMessageCommand  = new SendMessageCommand(sendCmdInput);
+            // send message sqs
+            const s3Message:S3Message = {
+                bucketName,
+                key:uploadKey,
+            };
+            const sqsClient = new SQSClient();
+            const sendCmdInput:SendMessageCommandInput = {
+                QueueUrl:QUEUE_URL,
+                MessageBody:JSON.stringify(s3Message)
+            }; 
+            const sqsCmd:SendMessageCommand  = new SendMessageCommand(sendCmdInput);
 
-        await sqsClient.send(sqsCmd);
-        console.log(`sent message to SQS, message: ${JSON.stringify(s3Message)}`);
+            await sqsClient.send(sqsCmd);
+            console.log(`sent message to SQS, message: ${JSON.stringify(s3Message)}`);
+        }
+
+
     }
 }
