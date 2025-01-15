@@ -8,7 +8,7 @@ import { SendMessageCommand, SendMessageCommandInput, SQSClient } from '@aws-sdk
 
 
 const DEIRECTORY = "resized";
-const QUEUE_URL = process.env.queueUrl;
+const QUEUE_URL = process.env.QUEUE_URL;
 
 
 export const handler:S3Handler = async (event:S3Event)=>{

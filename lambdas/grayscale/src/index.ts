@@ -11,6 +11,7 @@ const PROCESS = "grayscale";
 //SQSはbodyをStringで提供する
 
 export const handler:SQSHandler = async (event:SQSEvent)=>{
+    console.log(`Event: ${JSON.stringify(event, null, 2)}`)
     const s3Client = new S3Client();
     for(const record of event.Records){
         const message = record.body;

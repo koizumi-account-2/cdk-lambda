@@ -35,6 +35,7 @@ export class CdkLambdaStack extends cdk.Stack {
       }
     });
 
+    console.log(`queueGrayScale.queueUrl : ${queueGrayScale.queueUrl}`);
     // lambda : resize
     const resizeLambda = new NodejsFunction(this,`${PREFIX}-lambda-resize`,{
       functionName: `${PREFIX}-resize`,
@@ -51,6 +52,7 @@ export class CdkLambdaStack extends cdk.Stack {
     bucket.grantPut(resizeLambda)
     bucket.grantReadWrite(resizeLambda)
     queueGrayScale.grantSendMessages(resizeLambda); //queueGrayScaleはresizeLambdaにメッセージを送ることができる
+
 
 
     bucket.addEventNotification(
